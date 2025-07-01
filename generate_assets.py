@@ -45,11 +45,15 @@ def generate_assets():
             "size": (32, 32),
         },
         "stone": {
-            "description": "stone",
+            "description": "stone, pixelated, light gray",
             "size": (32, 32),
         },
         "wizard_staff": {
-            "description": "wizard staff, small and simple, pixelated, dark wood, white tip, long handle",
+            "description": "wizard staff, small and simple, pixelated, dark wood, white tip, medium sized handle",
+            "size": (32, 32),
+        },
+        "cobblestone": {
+            "description": "cobblestone, pixelated, dark gray, smooth surface, rough edges",
             "size": (32, 32),
         },
     }

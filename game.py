@@ -833,18 +833,42 @@ class Hero(Character):
             # Fallback to a colored rectangle if sprite loading failed
             pygame.draw.rect(screen, (255, 255, 255), (self.x - camera_x, self.y, self.width, self.height))
         if self.holding_staff and STAFF_IMG:
-            staff_scaled = pygame.transform.scale(STAFF_IMG, (64, 128))
-            staff_rotated = pygame.transform.rotate(staff_scaled, -45 if self.facing_right else 45)
-
-            staff_x = self.x - camera_x + (self.width // 2) - 10
-            staff_y = self.y - 20
-            staff_rect = staff_rotated.get_rect(center=(staff_x, staff_y))
-            screen.blit(staff_rotated, staff_rect.topleft)
+            # Get original staff size and scale it up slightly (1.5x)
+            original_width, original_height = STAFF_IMG.get_size()
+            scale_factor = 1.5
+            staff_width = int(original_width * scale_factor)
+            staff_height = int(original_height * scale_factor)
+            staff_scaled = pygame.transform.scale(STAFF_IMG, (staff_width, staff_height))
+            
+            # Rotate staff based on facing direction
+            angle = -45 if self.facing_right else 45  # 45 degrees right, -45 degrees left
+            staff_rotated = pygame.transform.rotate(staff_scaled, angle)
+            
+            # Vertical position - hands are about 70% down the character
+            hand_offset_y = self.height * 0.7
+            
+            # Horizontal position - adjust based on facing direction
+            if self.facing_right:
+                # Position on right side but closer to body when facing right
+                staff_x = self.x - camera_x + self.width - (staff_width * 1.1)  # Increased from 0.7 to 0.9 to move left
+            else:
+                # Position on left side but closer to body when facing left
+                staff_x = self.x - camera_x - self.width + (staff_width * 1.7)  # Increased from 0.3 to 0.5 to move right
+            
+            # Vertical position - align bottom of staff with hands
+            staff_y = self.y + hand_offset_y - staff_height
+            
+            # Draw the staff
+            screen.blit(staff_rotated, (staff_x, staff_y))
     def shoot_projectile(self, vx, vy):
+        if not self.holding_staff:
+            return None  # Can't shoot without the staff
+            
         if DEBUG_MODE:
             # print(f"Attempting to shoot projectile with velocity: ({vx:.2f}, {vy:.2f})")
             # print(f"Cooldown: {self.projectile_cooldown}")
             pass
+            
         if self.projectile_cooldown <= 0:
             projectile = Projectile(self.x + self.width // 2, 
                                   self.y + self.height // 2,
@@ -853,9 +877,12 @@ class Hero(Character):
             if DEBUG_MODE:
                 # print(f"Hero shot projectile at x={self.x}, y={self.y} with velocity=({vx:.2f}, {vy:.2f})")
                 # print(f"Projectile created at x: {projectile.x}, y: {projectile.y}")
-                if not self.is_jumping:
-                    self.walk_anim_index = 0
-                self.walk_anim_timer = 0
+                pass
+            if not self.is_jumping:
+                self.walk_anim_index = 0
+            self.walk_anim_timer = 0
+            return projectile
+        return None
 
     # Animation logic has been moved to the update method
 
@@ -933,19 +960,10 @@ def main():
                     vx = (dx / dist) * PROJECTILE_SPEED
                     vy = (dy / dist) * PROJECTILE_SPEED
                     
-                    # Create a new projectile
-                    try:
-                        projectile = Projectile(
-                            hero_cx,  # x
-                            hero_cy,  # y
-                            vx,       # velocity x
-                            vy        # velocity y
-                        )
+                    # Use hero's shoot_projectile method which checks for staff
+                    projectile = hero.shoot_projectile(vx, vy)
+                    if projectile:  # Only add if hero is holding staff and cooldown allows
                         projectiles.append(projectile)
-                        # print(f"Fired projectile at ({vx:.1f}, {vy:.1f})")
-                    except Exception as e:
-                        # print(f"Error creating projectile: {e}")
-                        pass
                     
                 except Exception as e:
                     # print(f"Error shooting projectile: {e}")
