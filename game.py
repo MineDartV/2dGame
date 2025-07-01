@@ -6,7 +6,7 @@ import math
 
 from settings import (
     WINDOW_WIDTH, WINDOW_HEIGHT, FPS,
-    PROJECTILE_SPEED, GOBLIN_WIDTH, GOBLIN_HEIGHT,
+    GOBLIN_WIDTH, GOBLIN_HEIGHT,
     SKY_BLUE
 )
 from generate_assets import generate_assets
