@@ -7,7 +7,7 @@ import math
 from settings import (
     WINDOW_WIDTH, WINDOW_HEIGHT, FPS,
     GOBLIN_WIDTH, GOBLIN_HEIGHT,
-    SKY_BLUE
+    SKY_BLUE, PROJECTILE_SPEED
 )
 from generate_assets import generate_assets
 from utils import load_sprite

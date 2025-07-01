@@ -4,8 +4,6 @@ from utils import load_sprite
 from character_base import Character
 from projectile import Projectile
 
-# Load once (outside of class or inside Hero class as class variable)
-STAFF_IMG = load_sprite('wizard_staff.png')
 
 class Hero(Character):
     # Class-level variables to store loaded sprites (shared across all instances)
@@ -21,6 +19,7 @@ class Hero(Character):
         # Default color for the character (white)
         self.color = (255, 255, 255)
         self.holding_staff = False  # New state variable
+        self.staff_img = load_sprite('wizard_staff.png')
         
         # Load sprites only once (class-level)
         if not Hero._sprites_loaded:
@@ -165,13 +164,13 @@ class Hero(Character):
         else:
             # Fallback to a colored rectangle if sprite loading failed
             pygame.draw.rect(screen, (255, 255, 255), (self.x - camera_x, self.y, self.width, self.height))
-        if self.holding_staff and STAFF_IMG:
+        if self.holding_staff and self.staff_img:
             # Get original staff size and scale it up slightly (1.5x)
-            original_width, original_height = STAFF_IMG.get_size()
+            original_width, original_height = self.staff_img.get_size()
             scale_factor = 1.5
             staff_width = int(original_width * scale_factor)
             staff_height = int(original_height * scale_factor)
-            staff_scaled = pygame.transform.scale(STAFF_IMG, (staff_width, staff_height))
+            staff_scaled = pygame.transform.scale(self.staff_img, (staff_width, staff_height))
             
             # Rotate staff based on facing direction
             angle = -45 if self.facing_right else 45  # 45 degrees right, -45 degrees left
@@ -194,6 +193,7 @@ class Hero(Character):
             # Draw the staff
             screen.blit(staff_rotated, (staff_x, staff_y))
     def shoot_projectile(self, vx, vy):
+        print(self.holding_staff)
         if not self.holding_staff:
             return None  # Can't shoot without the staff
             
@@ -202,6 +202,7 @@ class Hero(Character):
             # print(f"Cooldown: {self.projectile_cooldown}")
             pass
             
+        print("Projectile cooldown: ", self.projectile_cooldown)
         if self.projectile_cooldown <= 0:
             projectile = Projectile(self.x + self.width // 2, 
                                   self.y + self.height // 2,
