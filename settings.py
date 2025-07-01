@@ -26,7 +26,8 @@ BROWN = (139, 69, 19)
 SKY_BLUE = (135, 206, 235)
 GRASS_GREEN = (34, 139, 34)
 DARK_GREEN = (0, 100, 0)
-
+BLACK = (0, 0, 0)  # Added from the second set
+PROJECTILE_COLOR = BLACK  # Black color for projectiles
 
 # Projectile settings
 PROJECTILE_SIZE = 20  # Size of the projectile box
@@ -34,18 +35,7 @@ PROJECTILE_SPEED = 8  # Reduced speed from 15 to 8
 PROJECTILE_COOLDOWN = 15  # Cooldown between shots
 
 # Colors
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-RED = (255, 0, 0)
-GREEN = (0, 255, 0)
-BLUE = (0, 0, 255)
-YELLOW = (255, 255, 0)
-GRAY = (128, 128, 128)
-BROWN = (139, 69, 19)
-SKY_BLUE = (135, 206, 235)
-GRASS_GREEN = (34, 139, 34)
-DARK_GREEN = (0, 100, 0)
-PROJECTILE_COLOR = BLACK  # Black color for projectiles
+# Removed duplicate color constants. Consolidated into the first set.
 
 # Debug mode
 DEBUG_MODE = True
