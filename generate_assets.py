@@ -48,6 +48,10 @@ def generate_assets():
             "description": "stone",
             "size": (32, 32),
         },
+        "wizard_staff": {
+            "description": "wizard staff, small and simple, pixelated, dark wood, white tip, long handle",
+            "size": (32, 32),
+        },
     }
 
     for asset, details in assets.items():

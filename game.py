@@ -177,6 +177,8 @@ class Projectile:
         # Draw the rotated image with proper alpha blending
         screen.blit(self.rotated_image, (draw_x, draw_y))
 
+        
+
 # Terrain class
 class Terrain:
     def place_trees(self):
@@ -669,6 +671,9 @@ class Goblin(Character):
             # print(f"Goblin AI: state={self.state}, wander_dir={self.wander_dir}, distance={distance:.1f}, x={self.x:.1f}, hero_x={hero_x:.1f}")
             pass
 
+# Load once (outside of class or inside Hero class as class variable)
+STAFF_IMG = load_sprite('wizard_staff.png')
+
 class Hero(Character):
     # Class-level variables to store loaded sprites (shared across all instances)
     _sprites_loaded = False
@@ -679,12 +684,10 @@ class Hero(Character):
     _jump_right = None
     _jump_left = None
     
-    def __init__(self, shirt_color=None, pants_color=None, hair_color=None):
-        # Default colors if none provided
-        self.shirt_color = shirt_color if shirt_color is not None else (50, 100, 200)  # Blue shirt
-        self.pants_color = pants_color if pants_color is not None else (80, 50, 20)    # Brown pants
-        self.hair_color = hair_color if hair_color is not None else (139, 69, 19)      # Brown hair
-        self.color = self.shirt_color  # For backward compatibility
+    def __init__(self):
+        # Default color for the character (white)
+        self.color = (255, 255, 255)
+        self.holding_staff = False  # New state variable
         
         # Load sprites only once (class-level)
         if not Hero._sprites_loaded:
@@ -695,118 +698,53 @@ class Hero(Character):
                     # Assuming each frame is 32x32 pixels in the sprite sheet
                     frame_width, frame_height = 32, 32
                     
-                    # Extract walking right frames (adjust these coordinates based on your sprite sheet)
-                    for i in range(4):  # Assuming 4 frames for walking
+                    # Extract walking right frames
+                    for i in range(4):  # 4 frames for walking
                         frame = pygame.Surface((frame_width, frame_height), pygame.SRCALPHA)
                         frame.blit(sprite_sheet, (0, 0), (i * frame_width, 0, frame_width, frame_height))
-                        # Apply color tints to different parts of the character
-                        # Create a copy of the original frame for color manipulation
-                        colored_frame = frame.copy()
-                        
-                        # Apply a simple color tint to the character
-                        # Create a colored version of the frame
-                        colored_frame = frame.copy()
-                        
-                        # Apply shirt color (top half)
-                        for y in range(frame_height // 2):
-                            for x in range(frame_width):
-                                # Get the original pixel
-                                r, g, b, a = frame.get_at((x, y))
-                                # Only tint non-transparent pixels
-                                if a > 0:
-                                    # Blend with shirt color (25% strength)
-                                    nr = min(255, r + self.shirt_color[0] // 4)
-                                    ng = min(255, g + self.shirt_color[1] // 4)
-                                    nb = min(255, b + self.shirt_color[2] // 4)
-                                    colored_frame.set_at((x, y), (nr, ng, nb, a))
-                        
-                        # Apply pants color (bottom half)
-                        for y in range(frame_height // 2, frame_height):
-                            for x in range(frame_width):
-                                # Get the original pixel
-                                r, g, b, a = frame.get_at((x, y))
-                                # Only tint non-transparent pixels
-                                if a > 0:
-                                    # Blend with pants color (30% strength)
-                                    nr = min(255, r + self.pants_color[0] // 3)
-                                    ng = min(255, g + self.pants_color[1] // 3)
-                                    nb = min(255, b + self.pants_color[2] // 3)
-                                    colored_frame.set_at((x, y), (nr, ng, nb, a))
-                        
-                        # Apply hair color (top portion)
-                        for y in range(frame_height // 3):
-                            for x in range(frame_width):
-                                # Get the original pixel
-                                r, g, b, a = frame.get_at((x, y))
-                                # Only tint non-transparent pixels
-                                if a > 0:
-                                    # Blend with hair color (35% strength)
-                                    nr = min(255, r + self.hair_color[0] // 3)
-                                    ng = min(255, g + self.hair_color[1] // 3)
-                                    nb = min(255, b + self.hair_color[2] // 3)
-                                    colored_frame.set_at((x, y), (nr, ng, nb, a))
-                        frame = colored_frame
                         Hero._anim_frames_right.append(frame)
                     
-                    # Extract walking left frames (flip right frames for left movement)
+                    # Create left-facing frames by flipping right-facing ones
                     for frame in Hero._anim_frames_right:
-                        flipped = pygame.transform.flip(frame, True, False)
-                        Hero._anim_frames_left.append(flipped)
+                        Hero._anim_frames_left.append(pygame.transform.flip(frame, True, False))
                     
-                    # Extract idle frame (first frame of walking animation as placeholder)
+                    # Set up idle and jump frames
                     if Hero._anim_frames_right:
                         Hero._idle_right = Hero._anim_frames_right[0]
                         Hero._idle_left = Hero._anim_frames_left[0]
-                    
-                    # Extract jump frame (use the first frame as placeholder for now)
-                    Hero._jump_right = Hero._anim_frames_right[0] if Hero._anim_frames_right else None
-                    Hero._jump_left = Hero._anim_frames_left[0] if Hero._anim_frames_left else None
+                        Hero._jump_right = Hero._anim_frames_right[0]
+                        Hero._jump_left = Hero._anim_frames_left[0]
                     
                     Hero._sprites_loaded = True
-                    if DEBUG_MODE:
-                        # print("[DEBUG] Successfully loaded hero sprites from sprite sheet")
-                        pass
-                else:
-                    # print("Error: Could not load hero sprite sheet")
-                    pass
             except Exception as e:
-                # print(f"Error loading hero sprites: {e}")
-                pass
+                if DEBUG_MODE:
+                    print(f"Error loading hero sprites: {e}")
         
         # Initialize with the idle right sprite
         sprite_list = [Hero._idle_right] if Hero._idle_right else None
-        # Adjust the initial y-position to align with the floor
-        initial_y = WINDOW_HEIGHT - PLAYER_HEIGHT - 10  # Temporary, will be adjusted in update
-        # Use shirt_color for the parent class's color parameter
-        super().__init__(100, initial_y, PLAYER_WIDTH, 
-                       PLAYER_HEIGHT, self.shirt_color, 100, sprite_list)
+        initial_y = WINDOW_HEIGHT - PLAYER_HEIGHT - 10
         
-        # Apply colors to the character
-        self.apply_colors()
-        # Visual offset for drawing - adjust this to align the sprite with the ground
-        # Positive values move the sprite up, negative values move it down
-        self.visual_y_offset = 20  # Adjust this to align the sprite with the ground
+        # Initialize parent class with default white color
+        super().__init__(100, initial_y, PLAYER_WIDTH, PLAYER_HEIGHT, 
+                       self.color, 100, sprite_list)
         
-        self.speed = 5.0  # Increased for better responsiveness
+        # Visual offset for drawing
+        self.visual_y_offset = 20
+        
+        # Movement and animation settings
+        self.speed = 5.0
         self.attack_damage = 10
         self.projectile_cooldown = 0
-        self.JUMP_FORCE = -12  # Negative because y increases downward
+        self.JUMP_FORCE = -12
         self.GRAVITY = 0.6
         self.facing_right = True
         self.walk_anim_timer = 0
-        self.walk_anim_speed = 0.2  # Lower is faster
+        self.walk_anim_speed = 0.2
         self.walk_anim_index = 0
         self.is_moving = False
         self.is_jumping = False
-        self.y_velocity = 0  # Vertical velocity for jumping
+        self.y_velocity = 0
         self.on_ground = False
-        self.jump_img = pygame.Surface((30, 45))
-        self.jump_img.fill((200, 50, 50))  # Lighter red for jump
-        self.walk_animation = []
-        for i in range(4):
-            frame = pygame.Surface((30, 50))
-            frame.fill((255, 50 + i*20, 50))  # Slight color variation for animation
-            self.walk_animation.append(frame)
     
     def update(self, keys=None, terrain=None, camera_x=0):
         if self.projectile_cooldown > 0:
@@ -865,92 +803,7 @@ class Hero(Character):
 
             # Update collision rect
             self.update_rect()
-    
-    def apply_colors(self, shirt_color=None, pants_color=None, hair_color=None):
-        """Apply colors to different parts of the character"""
-        if shirt_color is not None:
-            self.shirt_color = shirt_color
-        if pants_color is not None:
-            self.pants_color = pants_color
-        if hair_color is not None:
-            self.hair_color = hair_color
-            
-        # We'll need to reload the sprites with the new colors
-        try:
-            sprite_sheet = load_sprite('base_sheet_character.png')
-            if sprite_sheet:
-                frame_width, frame_height = 32, 32
-                
-                # Clear existing frames
-                Hero._anim_frames_right = []
-                Hero._anim_frames_left = []
-                
-                # Reload walking right frames with colors
-                for i in range(4):
-                    frame = pygame.Surface((frame_width, frame_height), pygame.SRCALPHA)
-                    frame.blit(sprite_sheet, (0, 0), (i * frame_width, 0, frame_width, frame_height))
-                    
-                    # Apply color tints to different parts
-                    colored_frame = frame.copy()
-                    
-                    # Apply a simple color tint to the character
-                    # Create a colored version of the frame
-                    colored_frame = frame.copy()
-                    
-                    # Apply shirt color (top half)
-                    for y in range(frame_height // 2):
-                        for x in range(frame_width):
-                            # Get the original pixel
-                            r, g, b, a = frame.get_at((x, y))
-                            # Only tint non-transparent pixels
-                            if a > 0:
-                                # Blend with shirt color (25% strength)
-                                nr = min(255, r + self.shirt_color[0] // 4)
-                                ng = min(255, g + self.shirt_color[1] // 4)
-                                nb = min(255, b + self.shirt_color[2] // 4)
-                                colored_frame.set_at((x, y), (nr, ng, nb, a))
-                    
-                    # Apply pants color (bottom half)
-                    for y in range(frame_height // 2, frame_height):
-                        for x in range(frame_width):
-                            # Get the original pixel
-                            r, g, b, a = frame.get_at((x, y))
-                            # Only tint non-transparent pixels
-                            if a > 0:
-                                # Blend with pants color (30% strength)
-                                nr = min(255, r + self.pants_color[0] // 3)
-                                ng = min(255, g + self.pants_color[1] // 3)
-                                nb = min(255, b + self.pants_color[2] // 3)
-                                colored_frame.set_at((x, y), (nr, ng, nb, a))
-                    
-                    # Apply hair color (top portion)
-                    for y in range(frame_height // 3):
-                        for x in range(frame_width):
-                            # Get the original pixel
-                            r, g, b, a = frame.get_at((x, y))
-                            # Only tint non-transparent pixels
-                            if a > 0:
-                                # Blend with hair color (35% strength)
-                                nr = min(255, r + self.hair_color[0] // 3)
-                                ng = min(255, g + self.hair_color[1] // 3)
-                                nb = min(255, b + self.hair_color[2] // 3)
-                                colored_frame.set_at((x, y), (nr, ng, nb, a))
-                    
-                    Hero._anim_frames_right.append(colored_frame)
-                
-                # Update left frames
-                Hero._anim_frames_left = [pygame.transform.flip(f, True, False) for f in Hero._anim_frames_right]
-                
-                # Update other sprites
-                if Hero._anim_frames_right:
-                    Hero._idle_right = Hero._anim_frames_right[0]
-                    Hero._idle_left = Hero._anim_frames_left[0]
-                    Hero._jump_right = Hero._anim_frames_right[0]
-                    Hero._jump_left = Hero._anim_frames_left[0]
-        except Exception as e:
-            if DEBUG_MODE:
-                print(f"Error applying colors: {e}")
-    
+
     def draw(self, screen, camera_x):
         # Select the appropriate sprite based on state
         if self.is_jumping:
@@ -973,56 +826,20 @@ class Hero(Character):
             # Use nearest neighbor scaling for crisp pixel art
             scaled = pygame.transform.scale(sprite, (self.width, self.height))
             
-            # Apply color to different parts of the character (fallback)
-            # This is a simplified version that won't cause visual artifacts
-            width, height = scaled.get_width(), scaled.get_height()
-            
-            # Create a new surface with per-pixel alpha
-            colored = pygame.Surface((width, height), pygame.SRCALPHA)
-            
-            # Copy the original image
-            colored.blit(scaled, (0, 0))
-            
-            # Apply shirt color (top half)
-            for y in range(height // 2):
-                for x in range(width):
-                    r, g, b, a = colored.get_at((x, y))
-                    if a > 0:  # Only modify non-transparent pixels
-                        # Blend with shirt color (25% strength)
-                        nr = min(255, r + self.shirt_color[0] // 4)
-                        ng = min(255, g + self.shirt_color[1] // 4)
-                        nb = min(255, b + self.shirt_color[2] // 4)
-                        colored.set_at((x, y), (nr, ng, nb, a))
-            
-            # Apply pants color (bottom half)
-            for y in range(height // 2, height):
-                for x in range(width):
-                    r, g, b, a = colored.get_at((x, y))
-                    if a > 0:  # Only modify non-transparent pixels
-                        # Blend with pants color (30% strength)
-                        nr = min(255, r + self.pants_color[0] // 3)
-                        ng = min(255, g + self.pants_color[1] // 3)
-                        nb = min(255, b + self.pants_color[2] // 3)
-                        colored.set_at((x, y), (nr, ng, nb, a))
-            
-            # Apply hair color (top portion)
-            for y in range(height // 3):
-                for x in range(width):
-                    r, g, b, a = colored.get_at((x, y))
-                    if a > 0:  # Only modify non-transparent pixels
-                        # Blend with hair color (35% strength)
-                        nr = min(255, r + self.hair_color[0] // 3)
-                        ng = min(255, g + self.hair_color[1] // 3)
-                        nb = min(255, b + self.hair_color[2] // 3)
-                        colored.set_at((x, y), (nr, ng, nb, a))
-            
-            # Update the scaled surface
-            scaled = colored
-                
+            # Draw the sprite directly without color modifications
             screen.blit(scaled, (self.x - camera_x, draw_y))
+            # --- DRAW STAFF ---
         else:
             # Fallback to a colored rectangle if sprite loading failed
-            pygame.draw.rect(screen, self.shirt_color, (self.x - camera_x, self.y, self.width, self.height))
+            pygame.draw.rect(screen, (255, 255, 255), (self.x - camera_x, self.y, self.width, self.height))
+        if self.holding_staff and STAFF_IMG:
+            staff_scaled = pygame.transform.scale(STAFF_IMG, (64, 128))
+            staff_rotated = pygame.transform.rotate(staff_scaled, -45 if self.facing_right else 45)
+
+            staff_x = self.x - camera_x + (self.width // 2) - 10
+            staff_y = self.y - 20
+            staff_rect = staff_rotated.get_rect(center=(staff_x, staff_y))
+            screen.blit(staff_rotated, staff_rect.topleft)
     def shoot_projectile(self, vx, vy):
         if DEBUG_MODE:
             # print(f"Attempting to shoot projectile with velocity: ({vx:.2f}, {vy:.2f})")
@@ -1077,12 +894,8 @@ def main():
     # Create terrain first!
     terrain = Terrain(grass_img, dirt_img, stone_img, tree_img)
 
-    # Create character with custom colors (RGB values 0-255)
-    hero = Hero(
-        shirt_color=(50, 100, 200),  # Blue shirt
-        pants_color=(80, 50, 20),    # Brown pants
-        hair_color=(139, 69, 19)     # Brown hair
-    )
+    # Create character with default colors from sprite sheet
+    hero = Hero()
     goblins = []  # List of goblins
     GOBLIN_RESPAWN_INTERVAL = 180  # Try to spawn every 3 seconds
     goblin_spawn_timer = 0
@@ -1137,6 +950,10 @@ def main():
                 except Exception as e:
                     # print(f"Error shooting projectile: {e}")
                     pass
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_1:
+                    hero.holding_staff = not hero.holding_staff  # Toggle staff visibility
+                    print("Holding staff")
 
         # Get keys
         keys = pygame.key.get_pressed()
