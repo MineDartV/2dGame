@@ -2,7 +2,7 @@ import pygame
 from settings import WINDOW_WIDTH, WINDOW_HEIGHT, PLAYER_WIDTH, PLAYER_HEIGHT, DEBUG_MODE
 from utils import load_sprite
 from character_base import Character
-from projectile import Projectile
+from projectile import Projectile, IceProjectile
 
 
 class Hero(Character):
@@ -18,8 +18,10 @@ class Hero(Character):
     def __init__(self):
         # Default color for the character (white)
         self.color = (255, 255, 255)
-        self.holding_staff = False  # New state variable
+        self.holding_staff = True  # Enable staff by default
+        self.staff_type = 'fire'  # 'fire' or 'ice'
         self.staff_img = load_sprite('wizard_staff.png')
+        self.ice_staff_img = load_sprite('ice_staff.png')
         
         # Load sprites only once (class-level)
         if not Hero._sprites_loaded:
@@ -71,16 +73,29 @@ class Hero(Character):
         self.GRAVITY = 0.6
         self.facing_right = True
         self.walk_anim_timer = 0
-        self.walk_anim_speed = 0.2
+        self.walk_anim_speed = 0.15  # Adjusted to a moderate speed
         self.walk_anim_index = 0
         self.is_moving = False
         self.is_jumping = False
         self.y_velocity = 0
         self.on_ground = False
     
-    def update(self, keys=None, terrain=None, camera_x=0):
+    def switch_staff(self):
+        """Switch between fire and ice staff"""
+        if self.holding_staff:
+            self.staff_type = 'ice' if self.staff_type == 'fire' else 'fire'
+            return True
+        return False
+
+    def update(self, keys=None, terrain=None, camera_x=0, dt=1.0/60.0):
+        # Handle staff switching
+        if keys and keys[pygame.K_2]:
+            if self.holding_staff and self.switch_staff():
+                # Small cooldown to prevent rapid switching
+                self.projectile_cooldown = 10
+
         if self.projectile_cooldown > 0:
-            self.projectile_cooldown -= 1
+            self.projectile_cooldown -= dt * 60  # Convert to frames assuming 60 FPS
 
         if keys is not None and terrain is not None:
             self.is_moving = False
@@ -123,10 +138,10 @@ class Hero(Character):
             self.x = new_x
             self.y = new_y
             
-            # Update animation
+            # Update animation timer with delta time
             if self.is_moving and self.on_ground:
-                self.walk_anim_timer += self.walk_anim_speed
-                if self.walk_anim_timer >= 1.0:
+                self.walk_anim_timer += dt * 1.5  # Slightly faster than normal
+                if self.walk_anim_timer >= self.walk_anim_speed:
                     self.walk_anim_timer = 0
                     self.walk_anim_index = (self.walk_anim_index + 1) % len(Hero._anim_frames_right)
             elif not self.is_moving:
@@ -164,13 +179,18 @@ class Hero(Character):
         else:
             # Fallback to a colored rectangle if sprite loading failed
             pygame.draw.rect(screen, (255, 255, 255), (self.x - camera_x, self.y, self.width, self.height))
-        if self.holding_staff and self.staff_img:
+        if self.holding_staff:
+            # Get the appropriate staff image based on staff type
+            staff_img = self.get_active_staff_image()
+            if not staff_img:
+                return
+                
             # Get original staff size and scale it up slightly (1.5x)
-            original_width, original_height = self.staff_img.get_size()
+            original_width, original_height = staff_img.get_size()
             scale_factor = 1.5
             staff_width = int(original_width * scale_factor)
             staff_height = int(original_height * scale_factor)
-            staff_scaled = pygame.transform.scale(self.staff_img, (staff_width, staff_height))
+            staff_scaled = pygame.transform.scale(staff_img, (staff_width, staff_height))
             
             # Rotate staff based on facing direction
             angle = -45 if self.facing_right else 45  # 45 degrees right, -45 degrees left
@@ -192,26 +212,29 @@ class Hero(Character):
             
             # Draw the staff
             screen.blit(staff_rotated, (staff_x, staff_y))
+    def get_active_staff_image(self):
+        """Return the appropriate staff image based on current staff type"""
+        return self.ice_staff_img if self.staff_type == 'ice' else self.staff_img
+
     def shoot_projectile(self, vx, vy):
-        print(self.holding_staff)
         if not self.holding_staff:
             return None  # Can't shoot without the staff
             
         if DEBUG_MODE:
-            # print(f"Attempting to shoot projectile with velocity: ({vx:.2f}, {vy:.2f})")
-            # print(f"Cooldown: {self.projectile_cooldown}")
             pass
             
-        print("Projectile cooldown: ", self.projectile_cooldown)
         if self.projectile_cooldown <= 0:
-            projectile = Projectile(self.x + self.width // 2, 
-                                  self.y + self.height // 2,
-                                  vx, vy)
+            # Create the appropriate projectile type based on staff
+            if self.staff_type == 'ice':
+                projectile = IceProjectile(self.x + self.width // 2, 
+                                        self.y + self.height // 2,
+                                        vx, vy)
+            else:  # fire staff (default)
+                projectile = Projectile(self.x + self.width // 2, 
+                                     self.y + self.height // 2,
+                                     vx, vy)
+            
             self.projectile_cooldown = 30  # Cooldown in frames
-            if DEBUG_MODE:
-                # print(f"Hero shot projectile at x={self.x}, y={self.y} with velocity=({vx:.2f}, {vy:.2f})")
-                # print(f"Projectile created at x: {projectile.x}, y: {projectile.y}")
-                pass
             if not self.is_jumping:
                 self.walk_anim_index = 0
             self.walk_anim_timer = 0

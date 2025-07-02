@@ -45,7 +45,7 @@ def generate_assets():
             "size": (32, 32),
         },
         "stone": {
-            "description": "stone, pixelated, light gray",
+            "description": "stone, pixelated, light gray and dark gray, rough surface, rough edges",
             "size": (32, 32),
         },
         "wizard_staff": {
@@ -55,6 +55,46 @@ def generate_assets():
         "cobblestone": {
             "description": "cobblestone, pixelated, dark gray, smooth surface, rough edges",
             "size": (32, 32),
+        },
+        "cloud": {
+            "description": "cloud, pixelated, white, smooth surface, rough edges",
+            "size": (64, 64),
+        },
+        "fireball_explosion": {
+            "description": "fireball explosion going in a circle, pixelated, red, smooth surface, rough edges",
+            "size": (32, 32),
+        },
+        "small_fireball_explosion": {
+            "description": "small fireball explosion that is a circle, pixelated, red, smooth surface, rough edges",
+            "size": (16, 16),
+        },
+        "iceball_explosion": {
+            "description": "iceball explosion going in a circle, pixelated, blue, smooth surface, rough edges",
+            "size": (32, 32),
+        },
+        "small_iceball_explosion": {
+            "description": "small iceball explosion that is a circle, pixelated, blue, smooth surface, rough edges",
+            "size": (16, 16),
+        },
+        "ice_staff": {
+            "description": "ice staff, small and simple, pixelated, dark wood, light blue tip, medium sized handle",
+            "size": (32, 32),
+        },
+        "bush": {
+            "description": "bush, pixelated, green, smooth surface, rough edges",
+            "size": (96, 96),
+        },
+        "flower": {
+            "description": "flower, pixelated, green and red, smooth surface, rough edges",
+            "size": (64, 64),
+        },
+        "pine_tree": {
+            "description": "pine tree, pixelated, green, smooth surface, rough edges",
+            "size": (64, 64),
+        },
+        "yellow_flower": {
+            "description": "yellow flower, pixelated, yellow, smooth surface, rough edges",
+            "size": (64, 64),
         },
     }
 

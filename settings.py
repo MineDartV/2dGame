@@ -1,7 +1,11 @@
 
 # Constants
 import os
+from pathlib import Path
 
+# Get the root directory of the project
+ROOT_DIR = Path(__file__).parent.resolve()
+ASSETS_DIR = ROOT_DIR / 'assets'
 
 WINDOW_WIDTH = 800
 WINDOW_HEIGHT = 600
@@ -45,7 +49,8 @@ DEBUG_MODE = True
 ASSETS_DIR = os.path.join(os.path.dirname(__file__), 'assets')
 os.makedirs(ASSETS_DIR, exist_ok=True)
 
-# Projectile image path
+# Projectile image paths
 PROJECTILE_IMG_PATH = os.path.join(ASSETS_DIR, 'fireball.png')
+ICEBALL_IMG_PATH = os.path.join(ASSETS_DIR, 'iceball.png')
 
 

@@ -1,11 +1,9 @@
 import pygame
 import random
 import math
-import pygame
-import math
 
 from settings import (
-    WINDOW_WIDTH, WINDOW_HEIGHT, FPS,
+    WINDOW_WIDTH, WINDOW_HEIGHT, FPS, DEBUG_MODE,
     GOBLIN_WIDTH, GOBLIN_HEIGHT,
     SKY_BLUE, PROJECTILE_SPEED
 )
@@ -15,6 +13,8 @@ from character_hero import Hero
 from character_goblin import Goblin
 from terrain import Terrain
 from projectile import Projectile
+from clouds import CloudManager
+from effects import ExplosionEffect, IceExplosionEffect
 
 # Generate assets if they don't exist
 generate_assets()
@@ -40,6 +40,10 @@ def main():
     goblin_img = load_sprite('goblin.png')
     grass_img = load_sprite('grass.png')
     dirt_img = load_sprite('dirt.png')
+    bush_img = load_sprite('bush.png')
+    flower_img = load_sprite('flower.png')
+    pine_tree_img = load_sprite('pine_tree.png')
+    yellow_flower_img = load_sprite('yellow_flower.png')
     
     # Set up the display
     screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
@@ -58,8 +62,10 @@ def main():
         font_big = pygame.font.Font(None, 48)
         font_small = pygame.font.Font(None, 32)
     
-    # Create terrain first!
-    terrain = Terrain(grass_img, dirt_img, stone_img, tree_img)
+    # Create terrain and clouds
+    terrain = Terrain(grass_img, dirt_img, stone_img, tree_img, pine_tree_img, 
+                     bush_img, flower_img, yellow_flower_img)
+    clouds = CloudManager(num_clouds=15)  # Add cloud system
 
     # Create character with default colors from sprite sheet
     hero = Hero()
@@ -73,13 +79,21 @@ def main():
     hero.update_rect()
 
     projectiles = []
+    explosion_effects = []  # List to store active explosion effects
     camera_x = 0
     
     
     # Game loop
     running = True
+    last_time = pygame.time.get_ticks()
     # print("Entering main game loop...")
     while running:
+        # Calculate delta time in seconds
+        current_time = pygame.time.get_ticks()
+        dt = (current_time - last_time) / 1000.0  # Convert to seconds
+        dt = min(dt, 0.1)  # Cap delta time to prevent large jumps
+        last_time = current_time
+        
         # Event handling
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -104,6 +118,9 @@ def main():
                     projectile = hero.shoot_projectile(vx, vy)
                     if projectile:  # Only add if hero is holding staff and cooldown allows
                         projectiles.append(projectile)
+                        if DEBUG_MODE:
+                            staff_type = hero.staff_type if hasattr(hero, 'staff_type') else 'unknown'
+                            print(f"Fired {staff_type} projectile: {projectile.__class__.__name__}")
                     
                 except Exception as e:
                     # print(f"Error shooting projectile: {e}")
@@ -111,32 +128,70 @@ def main():
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_1:
                     hero.holding_staff = not hero.holding_staff  # Toggle staff visibility
-                    print("Holding staff")
+                    print(f"Holding staff: {hero.holding_staff}")
+                elif event.key == pygame.K_2 and hero.holding_staff:
+                    hero.switch_staff()
+                    print(f"Switched to {hero.staff_type} staff")
 
         # Get keys
         keys = pygame.key.get_pressed()
         
         # Update hero - handles both movement and animation
-        hero.update(keys, terrain, camera_x)
+        hero.update(keys, terrain, camera_x, dt)
         
-        # Update goblins
+        # Update all goblins
         for goblin in goblins:
-            goblin.update(hero.x, terrain, camera_x)
+            goblin.update(hero.x, terrain, camera_x, dt)
         
-        # Update projectiles
+        # Update projectiles and handle explosions
         for projectile in projectiles[:]:  # Create a copy to safely remove projectiles
-            projectile.update()
+            # Update projectile and check for explosions
+            explosion = projectile.update(terrain, dt)
+            if explosion:
+                explosion_effects.append(explosion)
+                projectiles.remove(projectile)
+                continue
+                
             # Check projectile collision with goblin
-            for goblin in goblins:
+            for goblin in goblins[:]:  # Create a copy to safely remove goblins
                 if goblin.rect.colliderect(projectile.rect):
-                    goblin.health -= 10
-                    projectiles.remove(projectile)
+                    # Calculate damage based on projectile type
+                    damage = getattr(projectile, 'damage', 10)  # Default to 10 damage if not specified
+                    goblin.health -= damage
+                    
+                    # Debug output
+                    if DEBUG_MODE:
+                        projectile_type = 'ice' if hasattr(projectile, 'is_ice') and projectile.is_ice else 'fire'
+                        print(f"{projectile_type.capitalize()} projectile hit goblin for {damage} damage!")
+                    
+                    # Create appropriate explosion effect based on projectile type
+                    if hasattr(projectile, 'is_ice') and projectile.is_ice:
+                        explosion_effects.append(IceExplosionEffect(projectile.x, projectile.y))
+                    else:
+                        explosion_effects.append(ExplosionEffect(projectile.x, projectile.y))
+                        
+                    if projectile in projectiles:  # Check if not already removed
+                        projectiles.remove(projectile)
+                        
                     if goblin.health <= 0:
+                        if DEBUG_MODE:
+                            print("Goblin defeated!")
                         goblins.remove(goblin)
                     break
-            # Remove projectile if it goes off screen
-            if projectile.x < 0 or projectile.x > terrain.terrain_width:
-                projectiles.remove(projectile)
+                    
+            # Remove projectile if it's no longer active or goes off screen
+            if (not projectile.active or 
+                projectile.x < 0 or 
+                projectile.x > terrain.terrain_width or
+                projectile.y > WINDOW_HEIGHT):
+                if projectile in projectiles:  # Check if not already removed
+                    projectiles.remove(projectile)
+        
+        # Update explosion effects
+        for effect in explosion_effects[:]:
+            effect.update()
+            if not effect.active:
+                explosion_effects.remove(effect)
         
         # Collision detection
         for goblin in goblins:
@@ -152,6 +207,10 @@ def main():
         # Clear the screen with sky blue
         screen.fill(SKY_BLUE)
         
+        # Update and draw clouds (behind everything else)
+        clouds.update()
+        clouds.draw(screen, camera_x)
+        
         # Draw terrain first (background)
         terrain.draw(screen, camera_x)
         
@@ -159,6 +218,10 @@ def main():
         # 1. Draw all projectiles first (behind characters)
         for projectile in projectiles:
             projectile.draw(screen, camera_x)
+            
+        # 1.5 Draw all explosion effects (at the same depth as projectiles)
+        for effect in explosion_effects:
+            effect.draw(screen, camera_x)
             
         # 2. Draw all goblins with health bars
         for goblin in goblins:
