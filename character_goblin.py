@@ -46,61 +46,90 @@ class Goblin(Character):
         self.wander_dir = 0  # -1=left, 0=idle, 1=right
         
         # Animation state
-        self.animation_phase = 'idle'  # 'start_run', 'running', 'stop_run'
+        self.animation_phase = 'idle'  # 'start', 'run', 'stop', 'idle'
         self.animation_progress = 0
         self.last_direction = 0  # Track last movement direction for smooth stopping
+        self.walk_frame = 0  # Current frame in walk animation
+        self.walk_frame_time = 0  # Time since last frame change
+
     def setup_animations(self):
-        """Load and set up all animations from the sprite sheet"""
+        """Load and set up all animations from the sprite sheets"""
         try:
-            # Load the sprite sheet (3 rows: idle, walk, death)
-            # Original frame dimensions in the sprite sheet
-            original_frame_width, original_frame_height = 256, 341
-            
-            # Calculate scale factor to fit GOBLIN_WIDTH while maintaining aspect ratio
-            self.scale_factor = GOBLIN_WIDTH / original_frame_width
-            self.sprite_width = int(original_frame_width * self.scale_factor)
-            self.sprite_height = int(original_frame_height * self.scale_factor)
-            
-            # Update the hitbox to match the sprite size (slightly smaller for better gameplay)
-            self.width = int(self.sprite_width * 0.7)
-            self.height = self.sprite_height
-            
-            # Load the sprite sheet once
+            # Load the run sprite sheet (goblin_run.png)
+            run_sprite_path = thisdir / 'assets' / 'goblin_run.png'
+            if not run_sprite_path.exists():
+                run_sprite_path = ASSETS_DIR / 'goblin_run.png'
+                
+            if not run_sprite_path.exists():
+                raise FileNotFoundError(f"Could not find goblin run sprite at {run_sprite_path}")
+                
+            # Load the main sprite sheet for idle and death
             sprite_path = thisdir / 'assets' / 'goblin_idle__walk_death.png'
             if not sprite_path.exists():
-                # Fallback to ASSETS_DIR if not found in local assets
                 sprite_path = ASSETS_DIR / 'goblin_idle__walk_death.png'
                 
             if not sprite_path.exists():
                 raise FileNotFoundError(f"Could not find goblin sprite sheet at {sprite_path}")
                 
+            # Load and process run sprite sheet
+            run_sprite_sheet = pygame.image.load(str(run_sprite_path)).convert_alpha()
             sprite_sheet = pygame.image.load(str(sprite_path)).convert_alpha()
             
-            # Helper function to extract a single frame
-            def get_frame(row, col):
-                x = col * original_frame_width
-                y = row * original_frame_height
-                frame = pygame.Surface((original_frame_width, original_frame_height), pygame.SRCALPHA)
-                frame.blit(sprite_sheet, (0, 0), (x, y, original_frame_width, original_frame_height))
-                if self.scale_factor != 1.0:
-                    new_width = max(1, int(original_frame_width * self.scale_factor))
-                    new_height = max(1, int(original_frame_height * self.scale_factor))
-                    frame = pygame.transform.scale(frame, (new_width, new_height))
-                return frame
+            # Frame dimensions - adjusted to match actual sprite sheet
+            original_frame_width, original_frame_height = 256, 341  # For idle/death
+            run_frame_width, run_frame_height = 253, 282  # Updated run animation frame size
+            
+            # Target size for all sprites
+            target_width = 32
+            target_height = 38  # Slightly taller to prevent floating
+            
+            # Calculate scale factors for each sprite sheet
+            idle_scale = target_width / original_frame_width
+            run_scale = target_width / run_frame_width
+            
+            # Set sprite dimensions to target size
+            self.sprite_width = target_width
+            self.sprite_height = target_height
+            
+            # Update the hitbox to match the sprite size (slightly smaller for better gameplay)
+            self.width = int(self.sprite_width * 0.7)
+            self.height = self.sprite_height
+            
+            # Helper function to extract and scale a single frame
+            def get_frame(sheet, row, col, frame_width, frame_height, scale, is_run_sheet=False):
+                # Add 1 pixel padding to prevent edge artifacts
+                x = col * frame_width + (1 if is_run_sheet and col > 0 else 0)
+                y = row * frame_height
+                
+                # Adjust width to prevent overlap with next frame
+                width = frame_width - (1 if is_run_sheet and col < 3 else 0)
+                
+                # Create a clean surface with the exact frame size
+                frame = pygame.Surface((width, frame_height), pygame.SRCALPHA)
+                frame.blit(sheet, (0, 0), (x, y, width, frame_height))
+                
+                # Scale to target size while maintaining aspect ratio
+                return pygame.transform.scale(frame, (target_width, target_height))
             
             # Create animation sequences
-            idle_frames = [get_frame(0, i % 8) for i in range(2)]  # First row, first 2 frames
+            # Idle animation (from main sprite sheet)
+            idle_frames = [get_frame(sprite_sheet, 0, i % 8, original_frame_width, original_frame_height, idle_scale) 
+                          for i in range(2)]
             
-            # Custom walk sequence as specified: 1,2,3,4,3,4,3,4... then 3,2,1 when stopping
-            walk_frames = [
-                get_frame(1, 0),  # Row 2, Col 1 (start)
-                get_frame(1, 1),  # Row 2, Col 2
-                get_frame(1, 2),  # Row 2, Col 3
-                get_frame(1, 3),  # Row 2, Col 4
-            ]
+            # Run animation (from goblin_run.png)
+            run_sheet_width = run_sprite_sheet.get_width()
+            run_frame_count = run_sheet_width // run_frame_width
             
-            # Death animation (all frames in row 3)
-            death_frames = [get_frame(2, i) for i in range(8)]
+            # Get all run frames (1-4) with proper scaling and edge handling
+            run_frames = [get_frame(run_sprite_sheet, 0, i, run_frame_width, run_frame_height, run_scale, is_run_sheet=True) 
+                        for i in range(min(4, run_frame_count))]
+            
+            # Create ping-pong sequence: 1-2-3-4-3-2-1-2...
+            walk_frames = run_frames + run_frames[-2:0:-1]
+            
+            # Death animation (from main sprite sheet)
+            death_frames = [get_frame(sprite_sheet, 2, i, original_frame_width, original_frame_height, idle_scale) 
+                          for i in range(8)]
             
             # Store animations
             self.animations = {
@@ -120,9 +149,9 @@ class Goblin(Character):
             self.walk_phase = 'idle'  # 'start', 'run', 'stop', 'idle'
             self.walk_progress = 0
             
-            # Position the goblin on the ground
-            ground_height = WINDOW_HEIGHT - self.sprite_height - 10  # 10 pixels above bottom
-            self.y = ground_height
+            # Position the goblin on the ground - moved down further
+            ground_height = WINDOW_HEIGHT - self.sprite_height - 15  # 15 pixels above bottom
+            self.y = ground_height + 10  # Additional 10 pixels down to fix floating
             self.x = min(self.x, WINDOW_WIDTH - self.sprite_width - 10)  # Keep within bounds
             
         except Exception as e:
@@ -147,22 +176,16 @@ class Goblin(Character):
             self.current_animation_name = 'death'
         elif abs(self.wander_dir) > 0:  # Moving
             if prev_animation != 'walk':
-                # Starting to move - begin start sequence
+                # Starting to move - begin walk sequence
                 self.walk_phase = 'start'
-                self.walk_progress = 0
-                self.animation_frame = 0
                 self.animation_time = 0
+                self.walk_frame = 0
             self.current_animation_name = 'walk'
         else:  # Not moving
             if prev_animation == 'walk' and self.walk_phase != 'idle':
                 # Was moving, now stopping
-                if self.walk_phase == 'start':
-                    # If was just starting, go back to idle
-                    self.walk_phase = 'idle'
-                else:
-                    # Start stop sequence
-                    self.walk_phase = 'stop'
-                    self.walk_progress = 0
+                self.walk_phase = 'stop'
+                self.animation_time = 0
             self.current_animation_name = 'idle'
         
         # Update current animation
@@ -171,45 +194,28 @@ class Goblin(Character):
             
             if self.current_animation_name == 'idle':
                 # Simple idle animation (loop first 2 frames)
-                frame_duration = 0.5  # seconds per frame
+                frame_duration = 0.2  # seconds per frame
                 self.animation_frame = int((self.animation_time / frame_duration) % 2)
                 
             elif self.current_animation_name == 'walk':
-                if self.walk_phase == 'start':
-                    # Start sequence: 0, 1, 2, 3
-                    frame_duration = 0.1  # seconds per frame during start
-                    frame_count = min(4, int(self.animation_time / frame_duration))
-                    self.animation_frame = min(3, frame_count)
-                    
-                    if frame_count >= 4:
-                        self.walk_phase = 'run'
-                        self.animation_time = 0
-                        
-                elif self.walk_phase == 'run':
-                    # Running loop: alternate between frames 2 and 3
-                    frame_duration = 0.15  # seconds per frame during run
-                    frame_count = int(self.animation_time / frame_duration)
-                    self.animation_frame = 2 + (frame_count % 2)
-                    
-                elif self.walk_phase == 'stop':
-                    # Stop sequence: 2, 1, 0
-                    frame_duration = 0.1  # seconds per frame during stop
-                    frame_count = min(3, int(self.animation_time / frame_duration))
-                    self.animation_frame = max(0, 2 - frame_count)
-                    
-                    if frame_count >= 3:
-                        self.walk_phase = 'idle'
-                        self.animation_time = 0
-            
+                frame_duration = 0.1  # seconds per frame during walk
+                
+                # Update walk frame with ping-pong effect
+                self.walk_frame_time += dt
+                if self.walk_frame_time >= frame_duration:
+                    # Total frames in the ping-pong sequence: 1-2-3-4-3-2 (6 frames total)
+                    self.walk_frame = (self.walk_frame + 1) % 6
+                    self.walk_frame_time = 0
+                
+                self.animation_frame = self.walk_frame
+                
             elif self.current_animation_name == 'death':
                 # Death animation (play once)
                 frame_duration = 0.15  # seconds per frame during death
                 self.animation_frame = min(len(self.current_animation) - 1, 
                                         int(self.animation_time / frame_duration))
         
-        # Update facing direction based on movement
-        if abs(self.wander_dir) > 0:
-            self.facing_right = self.wander_dir > 0
+        # Facing direction is now handled in the update method
     
     def draw(self, screen, camera_x):
         if not self.animations or not self.current_animation:
@@ -221,14 +227,25 @@ class Goblin(Character):
         if 0 <= self.animation_frame < len(self.current_animation):
             frame = self.current_animation[self.animation_frame]
             
-            # Flip the frame if not facing right
-            if not self.facing_right:
-                frame = pygame.transform.flip(frame, True, False)
-            
-            # Calculate draw position (centered on the hitbox)
-            draw_x = self.x - camera_x - (frame.get_width() - self.width) // 2
-            draw_y = self.y - (frame.get_height() - self.height)  # Align bottom with hitbox
+            # For run animation, we need to handle facing direction specially
+            if self.current_animation_name == 'walk':
+                # Always draw the frame as-is (facing right)
+                # We'll flip it if needed using the transform
+                if not self.facing_right:
+                    frame = pygame.transform.flip(frame, True, False)
                 
+                # Calculate position to keep feet planted
+                draw_x = self.x - camera_x - (frame.get_width() - self.width) // 2
+                draw_y = self.y + self.height - frame.get_height()
+            else:
+                # For other animations, use the normal flip logic
+                if not self.facing_right:
+                    frame = pygame.transform.flip(frame, True, False)
+                
+                # Standard positioning for non-walk animations
+                draw_x = self.x - camera_x - (frame.get_width() - self.width) // 2
+                draw_y = self.y - (frame.get_height() - self.height)
+            
             # Draw the frame at the calculated position
             screen.blit(frame, (draw_x, draw_y))
     
@@ -242,14 +259,28 @@ class Goblin(Character):
             distance = hero_x - self.x
             chase_range = 300
             
-            # Update facing direction based on movement
+            # Check if goblin is off-screen and should change direction
+            screen_left = camera_x
+            screen_right = camera_x + WINDOW_WIDTH
+            
+            # Update facing direction based on movement and screen position
             if abs(distance) < chase_range:
                 self.state = 'chase'
+                # Always face the hero when chasing
                 self.facing_right = distance > 0
             else:
                 self.state = 'wander'
-                # Only update facing direction when actually moving
-                if abs(self.wander_dir) > 0:
+                
+                # If goblin is off-screen to the left and moving left
+                if self.x < screen_left and not self.facing_right:
+                    self.facing_right = True
+                    self.wander_dir = 1  # Force movement to the right
+                # If goblin is off-screen to the right and moving right
+                elif self.x > screen_right and self.facing_right:
+                    self.facing_right = False
+                    self.wander_dir = -1  # Force movement to the left
+                # Otherwise, update facing based on wander direction if not off-screen
+                elif self.wander_dir != 0:
                     self.facing_right = self.wander_dir > 0
             
             # Handle movement based on state
@@ -258,7 +289,11 @@ class Goblin(Character):
             if self.state == 'wander':
                 if self.wander_timer <= 0:
                     # Pick a new direction and duration
-                    self.wander_dir = random.choice([-1, 0, 1])
+                    new_dir = random.choice([-1, 0, 1])
+                    # Update facing direction immediately when direction changes
+                    if new_dir != self.wander_dir:
+                        self.wander_dir = new_dir
+                        self.facing_right = self.wander_dir > 0
                     self.wander_timer = random.randint(40, 120)  # frames
                 else:
                     self.wander_timer -= 1 * dt * 60  # Scale by FPS
@@ -266,8 +301,10 @@ class Goblin(Character):
             elif self.state == 'chase':
                 if distance > 0:
                     self.x += move_speed
+                    self.facing_right = True
                 else:
                     self.x -= move_speed
+                    self.facing_right = False
             
             # Keep goblin on the ground
             target_y = ground_height - self.height
@@ -290,7 +327,7 @@ class Goblin(Character):
             # Attempt attack only if cooldown is zero and in range
             if abs(distance) < self.attack_range and self.attack_cooldown <= 0:
                 if self.attack():
-                    self.attack_cooldown = 1.0  # 1 second cooldown
+                    self.attack_cooldown = 0.5  # Reduced from 1.0 to 0.5 seconds for faster attacks
                     if DEBUG_MODE:
                         pass
             

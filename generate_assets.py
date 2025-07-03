@@ -96,6 +96,18 @@ def generate_assets():
             "description": "yellow flower, pixelated, yellow, smooth surface, rough edges",
             "size": (64, 64),
         },
+        "sun": {
+            "description": "sun, pixelated, yellow, smooth surface, rough edges",
+            "size": (64, 64),
+        },
+        "moon": {
+            "description": "moon, pixelated, white, smooth surface, rough edges",
+            "size": (64, 64),
+        },
+        "red_moon": {
+            "description": "red moon, pixelated, red, smooth surface, rough edges",
+            "size": (64, 64),
+        },
     }
 
     for asset, details in assets.items():

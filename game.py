@@ -15,6 +15,7 @@ from terrain import Terrain
 from projectile import Projectile
 from clouds import CloudManager
 from effects import ExplosionEffect, IceExplosionEffect
+from day_night_cycle import DayNightCycle
 
 # Generate assets if they don't exist
 generate_assets()
@@ -66,6 +67,9 @@ def main():
     terrain = Terrain(grass_img, dirt_img, stone_img, tree_img, pine_tree_img, 
                      bush_img, flower_img, yellow_flower_img)
     clouds = CloudManager(num_clouds=15)  # Add cloud system
+    
+    # Initialize day/night cycle
+    day_night_cycle = DayNightCycle()
 
     # Create character with default colors from sprite sheet
     hero = Hero()
@@ -143,6 +147,9 @@ def main():
         for goblin in goblins:
             goblin.update(hero.x, terrain, camera_x, dt)
         
+        # Update day/night cycle
+        day_night_cycle.update(dt)
+        
         # Update projectiles and handle explosions
         for projectile in projectiles[:]:  # Create a copy to safely remove projectiles
             # Update projectile and check for explosions
@@ -204,8 +211,11 @@ def main():
         # Keep camera within bounds
         camera_x = max(0, min(camera_x, terrain.terrain_width - WINDOW_WIDTH))
         
-        # Clear the screen with sky blue
-        screen.fill(SKY_BLUE)
+        # Clear the screen with current sky color
+        screen.fill(day_night_cycle.get_sky_color())
+        
+        # Draw day/night cycle (sun/moon)
+        day_night_cycle.draw(screen)
         
         # Update and draw clouds (behind everything else)
         clouds.update()
