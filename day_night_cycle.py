@@ -141,39 +141,47 @@ class DayNightCycle:
         # Sun rises at 0.0, sets at 0.5
         # Moon rises at 0.5, sets at 0.0
         
-        # Calculate sun and moon visibility based on height ratio
-        sun_visibility = max(0, min(1, sun_height_ratio + 0.5))  # 0 to 1 when sun is above horizon
-        moon_visibility = max(0, min(1, moon_height_ratio + 0.5))  # 0 to 1 when moon is above horizon
+        # Calculate sun and moon visibility based on height ratio with smoother transitions
+        # Extend the transition zone for smoother changes
+        sun_visibility = max(0, min(1, (sun_height_ratio + 1.0) * 0.5))  # Smoother transition from -1 to 1
+        moon_visibility = max(0, min(1, (moon_height_ratio + 1.0) * 0.5))  # Smoother transition from -1 to 1
         
         # Determine day/night based on which celestial body is more visible
-        if sun_visibility > moon_visibility:
-            # Daytime - sun is more visible than moon
-            if sun_visibility < 0.5:  # Sun is near horizon (dawn/dusk)
-                # Blend between night and day based on sun height
-                t = sun_visibility * 2  # 0 to 1 as sun rises
-                factor = 1.0 - t
-                current_color = (
-                    int(night_color[0] * (1 - t) + day_color[0] * t),
-                    int(night_color[1] * (1 - t) + day_color[1] * t),
-                    int(night_color[2] * (1 - t) + day_color[2] * t)
-                )
-            else:  # Full daylight
-                factor = 0.0
-                current_color = day_color
-        else:
-            # Nighttime - moon is more visible than sun
-            if moon_visibility < 0.5:  # Moon is near horizon (moonrise/moonset)
-                # Blend between day and night based on moon height
-                t = moon_visibility * 2  # 0 to 1 as moon rises
-                factor = t
-                current_color = (
-                    int(day_color[0] * (1 - t) + night_color[0] * t),
-                    int(day_color[1] * (1 - t) + night_color[1] * t),
-                    int(day_color[2] * (1 - t) + night_color[2] * t)
-                )
-            else:  # Full night
-                factor = 1.0
-                current_color = night_color
+        # Use a smoothstep function for smoother transitions
+        def smoothstep(edge0, edge1, x):
+            # Scale, and clamp x to 0..1 range
+            x = max(0.0, min(1.0, (x - edge0) / (edge1 - edge0)))
+            return x * x * (3.0 - 2.0 * x)  # Smoothstep formula
+        
+        # Calculate the blend factor between day and night
+        # This creates a smooth transition over a longer period
+        day_night_blend = (sun_visibility - moon_visibility) * 0.5 + 0.5  # Convert to 0-1 range
+        
+        # Apply smoothstep to the blend factor for a more gradual transition
+        blend = smoothstep(0.0, 1.0, day_night_blend)
+        
+        # Calculate the final color based on the blend factor
+        factor = 1.0 - blend  # 0 = full day, 1 = full night
+        current_color = (
+            int(day_color[0] * (1 - factor) + night_color[0] * factor),
+            int(day_color[1] * (1 - factor) + night_color[1] * factor),
+            int(day_color[2] * (1 - factor) + night_color[2] * factor)
+        )
+        
+        # Add twilight effect when both sun and moon are near horizon
+        if 0.3 < sun_visibility < 0.7 or 0.3 < moon_visibility < 0.7:
+            # Calculate twilight intensity (strongest when both are near horizon)
+            twilight_intensity = min(
+                smoothstep(0.3, 0.5, sun_visibility) * smoothstep(0.7, 0.5, sun_visibility),
+                smoothstep(0.3, 0.5, moon_visibility) * smoothstep(0.7, 0.5, moon_visibility)
+            )
+            
+            # Blend in some twilight color
+            current_color = (
+                int(current_color[0] * (1 - twilight_intensity) + twilight_color[0] * twilight_intensity * 0.5),
+                int(current_color[1] * (1 - twilight_intensity) + twilight_color[1] * twilight_intensity * 0.5),
+                int(current_color[2] * (1 - twilight_intensity) + twilight_color[2] * twilight_intensity * 0.5)
+            )
         
         # Add a small twilight effect when both sun and moon are near horizon
         if 0.4 < sun_visibility < 0.6 and 0.4 < moon_visibility < 0.6:
