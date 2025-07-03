@@ -150,7 +150,7 @@ class Goblin(Character):
             self.walk_progress = 0
             
             # Position the goblin on the ground - moved down further
-            ground_height = WINDOW_HEIGHT - self.sprite_height - 15  # 15 pixels above bottom
+            ground_height = WINDOW_HEIGHT - self.sprite_height - 15 + 20  # 15 pixels above bottom, plus 20 pixel shift down
             self.y = ground_height + 10  # Additional 10 pixels down to fix floating
             self.x = min(self.x, WINDOW_WIDTH - self.sprite_width - 10)  # Keep within bounds
             
