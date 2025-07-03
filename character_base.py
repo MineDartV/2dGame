@@ -1,5 +1,5 @@
 import pygame
-from settings import WINDOW_WIDTH, WINDOW_HEIGHT
+from settings import WINDOW_WIDTH, WINDOW_HEIGHT, DEBUG_MODE
 
 class Character:
     def __init__(self, x, y, width, height, color, health, sprite_images=None):
@@ -90,16 +90,24 @@ class Character:
         # Ensure health is not negative
         self.health = max(0, self.health)
 
-    def attack(self):
+    def attack(self, target=None):
         if self.attack_cooldown <= 0:
             self.attacking = True
             self.attack_cooldown = 30  # 30 frames cooldown
+            if target:
+                target.take_damage(self.attack_damage)
             return True
         return False
     
     def take_damage(self, amount):
+        if DEBUG_MODE:
+            print(f"Character taking {amount} damage. Health before: {self.health}")
         self.health = max(0, self.health - amount)
+        if DEBUG_MODE:
+            print(f"Health after damage: {self.health}")
         if self.health <= 0:
+            if DEBUG_MODE:
+                print("Character health <= 0, respawning...")
             self.respawn()
     
     def respawn(self):

@@ -30,9 +30,11 @@ class Goblin(Character):
         self.current_state = 'idle'
         self.facing_right = False  # Track direction for flipping sprites
         self.speed = 2.0  # Adjusted for better movement
-        self.attack_range = 30
+        self.attack_range = 100  # Increased attack range for better testing
         self.attack_cooldown = 0
         self.attack_damage = 5
+        self.attack_animation_timer = 0
+        self.is_attacking = False
         self.rect = pygame.Rect(self.x, self.y, self.width, self.height)
         
         # Physics
@@ -248,8 +250,31 @@ class Goblin(Character):
             
             # Draw the frame at the calculated position
             screen.blit(frame, (draw_x, draw_y))
+            
+            # Draw health bar above the goblin
+            health_bar_width = 40
+            health_bar_height = 5
+            health_bar_x = draw_x + (frame.get_width() - health_bar_width) // 2
+            health_bar_y = draw_y - 10  # Position above the goblin's head
+            
+            # Draw health bar background (red)
+            pygame.draw.rect(screen, (255, 0, 0), 
+                          (health_bar_x, health_bar_y, health_bar_width, health_bar_height))
+            
+            # Calculate current health width
+            health_ratio = max(0, min(1, self.health / 50))  # 50 is max health for goblins
+            current_health_width = int(health_bar_width * health_ratio)
+            
+            # Draw current health (green)
+            health_color = (
+                int(255 * (1 - health_ratio * 0.5)),  # Red component
+                int(255 * health_ratio),  # Green component
+                0  # Blue component
+            )
+            pygame.draw.rect(screen, health_color, 
+                          (health_bar_x, health_bar_y, current_health_width, health_bar_height))
     
-    def update(self, hero_x, terrain, camera_x, dt=1.0/60.0):
+    def update(self, hero_x, terrain, camera_x, dt=1.0/60.0, hero=None):
         if not hasattr(self, 'sprite_height') or not self.animations:
             return  # Wait for sprite to load
             
@@ -324,12 +349,54 @@ class Goblin(Character):
             if self.attack_cooldown > 0:
                 self.attack_cooldown -= dt  # Already in seconds
                 
-            # Attempt attack only if cooldown is zero and in range
-            if abs(distance) < self.attack_range and self.attack_cooldown <= 0:
-                if self.attack():
-                    self.attack_cooldown = 0.5  # Reduced from 1.0 to 0.5 seconds for faster attacks
+            # Calculate actual distance to hero for attack check
+            if hero is not None:  # Make sure we have a hero to attack
+                # Simple distance check using x position only for now
+                dx = abs(hero.x - self.x)
+                
+                # Debug output for distance checking
+                if DEBUG_MODE and random.random() < 0.1:  # Print occasionally to avoid spam
+                    print(f"Goblin to hero x-distance: {dx}, Attack range: {self.attack_range}")
+                    print(f"Attack cooldown: {self.attack_cooldown}, Is attacking: {self.is_attacking}")
+                
+                # Simplified attack condition - only check x distance
+                if dx < self.attack_range and self.attack_cooldown <= 0 and not self.is_attacking:
                     if DEBUG_MODE:
-                        pass
+                        print("\n=== GOBLIN ATTACK STARTING ===")
+                        print(f"Hero position: ({hero.x}, {hero.y}), Health: {hero.health}")
+                        print(f"Goblin position: ({self.x}, {self.y})")
+                    
+                    self.is_attacking = True
+                    self.attack_animation_timer = 0.3  # 300ms attack animation
+                    
+                    # Deal damage immediately when attack starts for better responsiveness
+                    if hasattr(hero, 'take_damage'):
+                        try:
+                            if DEBUG_MODE:
+                                print(f"Calling hero.take_damage({self.attack_damage})")
+                            hero.take_damage(self.attack_damage)
+                            self.attack_cooldown = 1.0  # 1 second between attacks
+                            if DEBUG_MODE:
+                                print(f"Attack successful! Hero health: {hero.health}")
+                                print("=== GOBLIN ATTACK COMPLETE ===\n")
+                        except Exception as e:
+                            if DEBUG_MODE:
+                                print(f"ERROR in goblin attack: {e}")
+                                print("=== GOBLIN ATTACK FAILED ===\n")
+                    else:
+                        if DEBUG_MODE:
+                            print("ERROR: Hero has no take_damage method!")
+                            print("=== GOBLIN ATTACK FAILED ===\n")
+                    
+                # Handle attack animation
+                if self.is_attacking:
+                    self.attack_animation_timer -= dt
+                    if self.attack_animation_timer <= 0:
+                        self.is_attacking = False
+                
+                # Update cooldown
+                if self.attack_cooldown > 0:
+                    self.attack_cooldown -= dt
             
         except Exception as e:
             if DEBUG_MODE:

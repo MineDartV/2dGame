@@ -9,13 +9,13 @@ from PIL import Image, ImageFilter
 
 
 
-dotenv.load_dotenv()
-API_KEY = os.getenv("OPENAI_API_KEY")
-client = openai.OpenAI(api_key=API_KEY)
-
-thisdir = Path(__file__).resolve().parent
 
 def generate_assets():
+    dotenv.load_dotenv()
+    API_KEY = os.getenv("OPENAI_API_KEY")
+    client = openai.OpenAI(api_key=API_KEY)
+
+    thisdir = Path(__file__).resolve().parent
     print("Generating assets...")
     style_prompt = "2d pixel art, game asset style"
 
@@ -169,9 +169,3 @@ def generate_assets():
         resized_image.save(savepath.with_stem(f"{asset}"))
         print(f"Saved resized {asset}.png with transparent background")
 
-
-def main():
-    generate_assets()
-
-if __name__ == "__main__":
-    main()

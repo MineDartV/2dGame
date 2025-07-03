@@ -3,6 +3,7 @@ import math
 import time
 import colorsys
 from settings import WINDOW_WIDTH, WINDOW_HEIGHT, SKY_BLUE
+from utils import load_sprite
 
 class DayNightCycle:
     def __init__(self):
@@ -13,23 +14,28 @@ class DayNightCycle:
         self.last_debug = time.time()
         self.last_transition_time = time.time()  # Initialize with current time
         self.twilight_duration = 0.15  # 15% of day/night cycle for twilight (4.5 seconds with 30s cycle)
-        print(f"Initializing DayNightCycle with WINDOW_WIDTH={WINDOW_WIDTH}, WINDOW_HEIGHT={WINDOW_HEIGHT}")
-        print(f"Day duration: {self.day_duration} seconds")
+        # Debug output removed for performance
+        # print(f"Initializing DayNightCycle with WINDOW_WIDTH={WINDOW_WIDTH}, WINDOW_HEIGHT={WINDOW_HEIGHT}")
+        # print(f"Day duration: {self.day_duration} seconds")
         
         # Try to load celestial bodies with better error handling
         def load_image(paths, name, default_color, size=(100, 100)):
             for path in paths:
                 try:
                     img = pygame.image.load(path).convert_alpha()
-                    print(f"Loaded {name} from: {path}, original size: {img.get_size()}")
+                    # Debug output removed for performance
+                    # print(f"Loaded {name} from: {path}, original size: {img.get_size()}")
                     # Scale to reasonable size while maintaining aspect ratio
                     img = pygame.transform.scale(img, size)
                     return img
                 except Exception as e:
-                    print(f"Could not load {name} from {path}: {e}")
+                    # Debug output removed for performance
+                    # print(f"Could not load {name} from {path}: {e}")
+                    pass
             
             # Create fallback surface if loading failed
-            print(f"Creating fallback {name}")
+            # Debug output removed for performance
+            # print(f"Creating fallback {name}")
             surface = pygame.Surface(size, pygame.SRCALPHA)
             pygame.draw.circle(surface, default_color, 
                              (size[0]//2, size[1]//2), 
@@ -37,12 +43,17 @@ class DayNightCycle:
             return surface
         
         # Load sun and moon with larger default size
-        self.sun = load_image(['assets/sun.png', 'sun.png'], 
-                            'sun', (255, 255, 0), (120, 120))
-        self.moon = load_image(['assets/moon.png', 'moon.png'], 
-                             'moon', (200, 200, 200), (100, 100))
+        self.sun = load_sprite("sun.png")
+        self.sun = pygame.transform.scale(self.sun, (120, 120))
+        self.moon = load_sprite("moon.png")
+        self.moon = pygame.transform.scale(self.moon, (120, 120))
+        # self.sun = load_image(['assets/sun.png', 'sun.png'], 
+        #                     'sun', (255, 255, 0), (120, 120))
+        # self.moon = load_image(['assets/moon.png', 'moon.png'], 
+        #                      'moon', (200, 200, 200), (100, 100))
         
-        print(f"Final sizes - Sun: {self.sun.get_size()}, Moon: {self.moon.get_size()}")
+        # Debug output removed for performance
+        # print(f"Final sizes - Sun: {self.sun.get_size()}, Moon: {self.moon.get_size()}")
         
         # Make sure we have valid surfaces
         if not isinstance(self.sun, pygame.Surface) or not isinstance(self.moon, pygame.Surface):
@@ -63,9 +74,9 @@ class DayNightCycle:
         prev_time = self.time_of_day
         self.time_of_day = (self.time_of_day + dt / self.day_duration) % 1.0
         
-        # Debug output for time changes
-        if int(prev_time * 100) != int(self.time_of_day * 100):
-            print(f"Time of day: {self.time_of_day:.2f} (Day: {0.0 <= self.time_of_day < 0.5})")
+        # Debug output for time changes - removed for performance
+        # if int(prev_time * 100) != int(self.time_of_day * 100):
+        #     print(f"Time of day: {self.time_of_day:.2f} (Day: {0.0 <= self.time_of_day < 0.5})")
         
         # Calculate time of day factors (0-1)
         self.day_factor = max(0, min(1, self.time_of_day * 2))  # 0 at midnight, 1 at noon

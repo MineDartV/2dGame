@@ -18,7 +18,7 @@ class Hero(Character):
     def __init__(self):
         # Default color for the character (white)
         self.color = (255, 255, 255)
-        self.holding_staff = True  # Enable staff by default
+        self.holding_staff = False  # Start without staff equipped
         self.staff_type = 'fire'  # 'fire' or 'ice'
         self.staff_img = load_sprite('wizard_staff.png')
         self.ice_staff_img = load_sprite('ice_staff.png')
@@ -87,12 +87,9 @@ class Hero(Character):
             return True
         return False
 
-    def update(self, keys=None, terrain=None, camera_x=0, dt=1.0/60.0):
-        # Handle staff switching
-        if keys and keys[pygame.K_2]:
-            if self.holding_staff and self.switch_staff():
-                # Small cooldown to prevent rapid switching
-                self.projectile_cooldown = 10
+    def update(self, keys=None, terrain=None, camera_x=0, dt=1.0/60.0, events=None):
+        # Handle staff switching - now handled in event loop
+        # The switch_staff method is called from the main game loop on KEYDOWN event
 
         if self.projectile_cooldown > 0:
             self.projectile_cooldown -= dt * 60  # Convert to frames assuming 60 FPS

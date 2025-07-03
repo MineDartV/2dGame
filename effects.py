@@ -12,8 +12,8 @@ class ExplosionEffect:
         self.sprite = load_sprite('fireball_explosion.png')
         self.active = True
         
-    def update(self):
-        self.frame += 1
+    def update(self, dt=1.0/60.0):
+        self.frame += 1 * dt * 60  # Scale by 60 to match original behavior at 60 FPS
         if self.frame >= self.max_frames:
             self.active = False
     
@@ -74,14 +74,14 @@ class IceExplosionEffect:
                 'alpha': 255
             })
         
-    def update(self):
+    def update(self, dt=1.0/60.0):
         self.frame += 1
         
-        # Update particles
+        # Update particles with delta time
         for p in self.particles:
-            p['x'] += p['vx']
-            p['y'] += p['vy']
-            p['vy'] += 0.1  # Gravity
+            p['x'] += p['vx'] * dt * 60  # Scale by 60 to match original behavior at 60 FPS
+            p['y'] += p['vy'] * dt * 60  # Scale by 60 to match original behavior at 60 FPS
+            p['vy'] += 0.1 * dt * 60  # Gravity, scaled by delta time
             p['alpha'] = max(0, 255 * (1 - (self.frame / self.max_frames)))
             
         if self.frame >= self.max_frames:
