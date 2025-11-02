@@ -16,8 +16,18 @@ class Hero(Character):
     _jump_left = None
     
     def __init__(self):
-        # Default color for the character (white)
-        self.color = (255, 255, 255)
+        # Initialize the parent Character class with default values
+        super().__init__(
+            x=WINDOW_WIDTH // 2,  # Center of the screen
+            y=WINDOW_HEIGHT - 100,  # Near the bottom
+            width=PLAYER_WIDTH,
+            height=PLAYER_HEIGHT,
+            color=(255, 255, 255),  # White
+            health=100,  # Starting health
+            sprite_images=None
+        )
+        
+        # Hero-specific attributes
         self.holding_staff = False  # Start without staff equipped
         self.staff_type = 'fire'  # 'fire' or 'ice'
         self.staff_img = load_sprite('wizard_staff.png')
@@ -54,16 +64,9 @@ class Hero(Character):
                 if DEBUG_MODE:
                     print(f"Error loading hero sprites: {e}")
         
-        # Initialize with the idle right sprite
-        sprite_list = [Hero._idle_right] if Hero._idle_right else None
-        initial_y = WINDOW_HEIGHT - PLAYER_HEIGHT - 10
-        
-        # Initialize parent class with default white color
-        super().__init__(100, initial_y, PLAYER_WIDTH, PLAYER_HEIGHT, 
-                       self.color, 100, sprite_list)
-        
-        # Visual offset for drawing
-        self.visual_y_offset = 20
+        # Set up the sprite list
+        self.sprite_images = [Hero._idle_right] if Hero._idle_right else None
+        self.visual_y_offset = 20  # Visual offset for drawing
         
         # Movement and animation settings
         self.speed = 5.0

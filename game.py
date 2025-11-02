@@ -141,7 +141,7 @@ class Game:
         self.cloud_manager = CloudManager()
         
         # Create day/night cycle
-        self.day_night_cycle = DayNightCycle()
+        self.day_night_cycle = DayNightCycle(self.screen)
         
         # Clear projectiles and effects
         self.projectiles = []
@@ -156,7 +156,7 @@ class Game:
             if event.type == pygame.QUIT:
                 self.running = False
             
-            # Handle key events
+            # Handle key presses
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     if self.state == GAME_STATE_PLAYING:
@@ -164,23 +164,40 @@ class Game:
                     else:
                         self.running = False
                 
+                # Toggle FPS display with F3
+                elif event.key == pygame.K_F3:
+                    self.show_fps = not self.show_fps
+                
+                # Space bar is used for jumping, not shooting
+                # Projectiles are now only fired with left mouse button
+                
                 # Toggle staff with 1
-                if event.key == pygame.K_1 and self.state == GAME_STATE_PLAYING:
+                elif event.key == pygame.K_1 and self.state == GAME_STATE_PLAYING:
                     self.hero.holding_staff = not self.hero.holding_staff
-                    # Debug: Staff holding state
-                    # print(f"Holding staff: {self.hero.holding_staff}")
+                    if DEBUG_MODE:
+                        print(f"Holding staff: {self.hero.holding_staff}")
                 
                 # Switch staff type with 2 (only when holding staff)
-                if event.key == pygame.K_2 and self.state == GAME_STATE_PLAYING and self.hero.holding_staff and self.hero.projectile_cooldown <= 0:
-                    if self.hero.switch_staff():
-                        self.hero.projectile_cooldown = 10  # Cooldown for switching
-                        # Debug: Staff switching
-                        # print(f"Switched to {self.hero.staff_type} staff")
+                elif event.key == pygame.K_2 and self.state == GAME_STATE_PLAYING and self.hero.holding_staff and self.hero.projectile_cooldown <= 0:
+                    if hasattr(self.hero, 'switch_staff'):
+                        if self.hero.switch_staff():
+                            self.hero.projectile_cooldown = 10  # Cooldown for switching
+                            if DEBUG_MODE:
+                                print(f"Switched to {self.hero.staff_type} staff")
             
-            # Handle mouse clicks for shooting
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and self.state == GAME_STATE_PLAYING:
-                if self.hero.holding_staff and self.hero.projectile_cooldown <= 0:
-                    self.shoot_projectile()
+            # Handle mouse clicks
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:  # Left click
+                    if self.state == GAME_STATE_PLAYING and self.hero.holding_staff and self.hero.projectile_cooldown <= 0:
+                        self.shoot_projectile()
+                    elif self.state == GAME_STATE_GAME_OVER:
+                        # Check if restart or quit button was clicked
+                        mouse_pos = pygame.mouse.get_pos()
+                        if hasattr(self, 'restart_button') and self.restart_button.collidepoint(mouse_pos):
+                            self.reset_game()
+                            self.state = GAME_STATE_PLAYING
+                        elif hasattr(self, 'quit_button') and self.quit_button.collidepoint(mouse_pos):
+                            self.state = GAME_STATE_MENU
     
     def shoot_projectile(self):
         """Shoot a projectile from the hero towards the mouse position"""
@@ -229,10 +246,11 @@ class Game:
         if self.state != GAME_STATE_PLAYING:
             return
             
-        if DEBUG_MODE and random.random() < 0.01:  # Print every ~100 frames to avoid spam
-            print(f"Hero position: ({self.hero.x:.1f}, {self.hero.y:.1f}), Health: {self.hero.health}")
-            for i, goblin in enumerate(self.goblins):
-                print(f"  Goblin {i}: pos=({goblin.x:.1f}, {goblin.y:.1f}), attacking={goblin.is_attacking}, cooldown={goblin.attack_cooldown:.2f}")
+        # Debug info disabled for better performance
+        # if DEBUG_MODE and random.random() < 0.01:
+        #     print(f"Hero position: ({self.hero.x:.1f}, {self.hero.y:.1f}), Health: {self.hero.health}")
+        #     for i, goblin in enumerate(self.goblins):
+        #         print(f"  Goblin {i}: pos=({goblin.x:.1f}, {goblin.y:.1f}), attacking={goblin.is_attacking}, cooldown={goblin.attack_cooldown:.2f}")
         
         # Update hero
         keys = pygame.key.get_pressed()
@@ -240,7 +258,7 @@ class Game:
         
         # Update goblins
         for goblin in self.goblins:
-            goblin.update(self.hero.x, self.terrain, self.camera_x, dt, self.hero)
+            goblin.update(self.hero.x, self.terrain, dt, self.camera_x, self.hero)
         
         # Update projectiles
         for projectile in self.projectiles[:]:
@@ -307,8 +325,11 @@ class Game:
         self.update_camera()
         
         # Check for game over
-        if self.hero.health <= 0:
+        if self.hero.health <= 0 and self.state != GAME_STATE_GAME_OVER:
             self.state = GAME_STATE_GAME_OVER
+            # Clear any existing projectiles and effects
+            self.projectiles.clear()
+            self.explosion_effects.clear()
     
     def is_visible(self, obj, camera_x):
         """Check if an object is within the visible screen area"""
@@ -323,54 +344,63 @@ class Game:
     
     def update_camera(self):
         """Update camera position to follow the hero"""
+        if not hasattr(self.terrain, 'terrain_width'):
+            return  # Can't update camera until terrain is initialized
+            
         # Center camera on hero with some lookahead
         target_x = self.hero.x - WINDOW_WIDTH // 3
         
-        # Smooth camera movement
-        self.camera_x += (target_x - self.camera_x) * 0.1
+        # Smooth camera movement with damping
+        camera_speed = 0.1
+        dx = target_x - self.camera_x
+        self.camera_x += dx * camera_speed
         
-        # Keep camera within level bounds
-        self.camera_x = max(0, min(self.camera_x, self.terrain.terrain_width - WINDOW_WIDTH))
+        # Calculate level bounds
+        min_x = 0
+        max_x = max(0, self.terrain.terrain_width - WINDOW_WIDTH)
+        
+        # Apply bounds checking
+        self.camera_x = max(min_x, min(self.camera_x, max_x))
     
     def draw(self, full_redraw=False):
         """Draw everything to the screen with optimized updates"""
-        # Store the current screen for dirty rectangle updates
-        if full_redraw or self.last_screen is None:
-            self.last_screen = self.screen.copy()
+        # Get the current sky color from day/night cycle
+        sky_color = self.day_night_cycle.get_sky_color() if hasattr(self.day_night_cycle, 'get_sky_color') else SKY_BLUE
         
-        # Only update what's necessary
+        # Fill the screen with the current sky color
+        self.screen.fill(sky_color)
+        
+        # Draw day/night cycle first (behind everything)
+        if hasattr(self.day_night_cycle, 'is_visible') and self.day_night_cycle.is_visible():
+            self.day_night_cycle.draw(self.screen)
+        
+        # Draw clouds (behind terrain)
+        self.cloud_manager.draw(self.screen, self.camera_x)
+        
+        # Draw terrain
+        self.terrain.draw(self.screen, self.camera_x)
+        
+        # Draw all game objects that are visible
         update_rects = []
-            
-        # Draw background elements if needed
-        if full_redraw or self.camera_x != getattr(self, '_last_camera_x', -9999):
-            self.screen.fill(SKY_BLUE)
-            self.cloud_manager.draw(self.screen, self.camera_x)
-            self.terrain.draw(self.screen, self.camera_x)
-            update_rects.append(pygame.Rect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT))
-
-        # Draw game objects
+        
+        # Draw goblins
         for goblin in self.goblins:
             if self.is_visible(goblin, self.camera_x):
                 rect = goblin.draw(self.screen, self.camera_x)
                 if rect:
                     update_rects.append(rect)
-
-        # Draw hero
-        hero_rect = self.hero.draw(self.screen, self.camera_x)
-        if hero_rect:
-            update_rects.append(hero_rect)
-
+        
         # Draw projectiles and effects
         for obj in self.projectiles + self.explosion_effects:
             if hasattr(obj, 'x') and self.is_visible(obj, self.camera_x):
                 rect = obj.draw(self.screen, self.camera_x)
                 if rect:
                     update_rects.append(rect)
-
-        # Draw day/night cycle if it's visible
-        if hasattr(self.day_night_cycle, 'is_visible') and self.day_night_cycle.is_visible():
-            self.day_night_cycle.draw(self.screen)
-            update_rects.append(pygame.Rect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT))
+        
+        # Draw hero last (on top of everything else)
+        hero_rect = self.hero.draw(self.screen, self.camera_x)
+        if hero_rect:
+            update_rects.append(hero_rect)
 
         # Draw HUD
         self.draw_hud()
@@ -534,7 +564,7 @@ class Game:
             self.screen.blit(fps_surface, (WINDOW_WIDTH - 100, 10))
     
     def draw_game_over(self):
-        """Draw game over screen"""
+        """Draw game over screen with options"""
         # Dark overlay
         overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 180))
@@ -542,15 +572,43 @@ class Game:
         
         # Game over text
         game_over = self.font.render("GAME OVER", True, (255, 50, 50))
-        self.screen.blit(game_over, 
-                        (WINDOW_WIDTH // 2 - game_over.get_width() // 2, 
-                         WINDOW_HEIGHT // 3))
+        text_rect = game_over.get_rect(center=(WINDOW_WIDTH // 2, WINDOW_HEIGHT // 3))
+        self.screen.blit(game_over, text_rect)
         
-        # Restart prompt
-        restart = self.small_font.render("Press R to restart or ESC to quit", True, WHITE)
-        self.screen.blit(restart, 
-                        (WINDOW_WIDTH // 2 - restart.get_width() // 2, 
-                         WINDOW_HEIGHT // 2))
+        # Create buttons
+        button_width, button_height = 200, 50
+        button_y = WINDOW_HEIGHT // 2
+        
+        # Restart button
+        restart_rect = pygame.Rect(
+            WINDOW_WIDTH // 2 - button_width // 2,
+            button_y,
+            button_width,
+            button_height
+        )
+        
+        # Quit button
+        quit_rect = pygame.Rect(
+            WINDOW_WIDTH // 2 - button_width // 2,
+            button_y + 70,
+            button_width,
+            button_height
+        )
+        
+        # Draw buttons
+        pygame.draw.rect(self.screen, (50, 150, 50), restart_rect, border_radius=10)
+        pygame.draw.rect(self.screen, (150, 50, 50), quit_rect, border_radius=10)
+        
+        # Button text
+        restart_text = self.small_font.render("Respawn", True, WHITE)
+        quit_text = self.small_font.render("Quit to Menu", True, WHITE)
+        
+        self.screen.blit(restart_text, restart_text.get_rect(center=restart_rect.center))
+        self.screen.blit(quit_text, quit_text.get_rect(center=quit_rect.center))
+        
+        # Store button rects for click detection
+        self.restart_button = restart_rect
+        self.quit_button = quit_rect
     
     def run(self):
         """Main game loop with optimized rendering"""

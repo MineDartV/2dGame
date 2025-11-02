@@ -6,9 +6,10 @@ from settings import WINDOW_WIDTH, WINDOW_HEIGHT, SKY_BLUE
 from utils import load_sprite
 
 class DayNightCycle:
-    def __init__(self):
+    def __init__(self, screen):
         import time  # For debug timing
         self.time_of_day = 0.0  # Start at midnight (0 = midnight, 0.25 = sunset, 0.5 = midnight, 0.75 = sunrise, 1.0 = next midnight)
+        self.screen = screen
         self.day_duration = 30.0  # seconds for a full day/night cycle (reduced for testing)
         self.night_surface = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
         self.last_debug = time.time()
@@ -69,6 +70,10 @@ class DayNightCycle:
         self.transition_speed = 0.5  # Speed of day/night transition
         self.night_alpha = 0  # 0 = full day, 255 = full night
         
+    def is_visible(self):
+        """Check if the day/night cycle should be visible"""
+        return True  # Always visible
+
     def update(self, dt):
         # Update time of day
         prev_time = self.time_of_day

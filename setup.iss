@@ -1,4 +1,4 @@
-[Setup]
+    [Setup]
 AppName=Hero Vs Goblin 
 AppVersion=1.0
 DefaultDirName={pf}\Hero Vs Goblin

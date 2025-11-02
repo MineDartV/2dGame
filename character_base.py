@@ -100,14 +100,14 @@ class Character:
         return False
     
     def take_damage(self, amount):
-        if DEBUG_MODE:
-            print(f"Character taking {amount} damage. Health before: {self.health}")
+        # if DEBUG_MODE:
+        #     print(f"Character taking {amount} damage. Health before: {self.health}")
         self.health = max(0, self.health - amount)
-        if DEBUG_MODE:
-            print(f"Health after damage: {self.health}")
+        # if DEBUG_MODE:
+        #     print(f"Health after damage: {self.health}")
         if self.health <= 0:
-            if DEBUG_MODE:
-                print("Character health <= 0, respawning...")
+            # if DEBUG_MODE:
+            #     print("Character health <= 0, respawning...")
             self.respawn()
     
     def respawn(self):

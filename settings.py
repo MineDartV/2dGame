@@ -80,11 +80,38 @@ def init_fonts():
     else:
         print(f"Using font: {FONT_NAME}")
 
-# Ensure assets directory exists
-ASSETS_DIR = os.path.join(os.path.dirname(__file__), 'assets')
-FONTS_DIR = os.path.join(ASSETS_DIR, 'fonts')
-os.makedirs(FONTS_DIR, exist_ok=True)
-os.makedirs(ASSETS_DIR, exist_ok=True)
+# Get the base directory for the application
+if getattr(sys, 'frozen', False):
+    # Running in a bundle (PyInstaller)
+    BASE_DIR = os.path.dirname(sys.executable)
+    # Use user's appdata directory for fonts
+    if os.name == 'nt':  # Windows
+        FONTS_DIR = os.path.join(os.getenv('LOCALAPPDATA'), 'HeroVsGoblin', 'fonts')
+    else:  # Linux/Mac
+        FONTS_DIR = os.path.expanduser('~/.local/share/herovsgoblin/fonts')
+else:
+    # Running in development
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    FONTS_DIR = os.path.join(BASE_DIR, 'assets', 'fonts')
+
+# Ensure directories exist
+try:
+    os.makedirs(FONTS_DIR, exist_ok=True)
+    if DEBUG_MODE:
+        print(f"Using font directory: {FONTS_DIR}")
+except Exception as e:
+    print(f"Warning: Could not create fonts directory at {FONTS_DIR}: {e}")
+    # Fallback to a temporary directory
+    import tempfile
+    FONTS_DIR = os.path.join(tempfile.gettempdir(), 'herovsgoblin', 'fonts')
+    os.makedirs(FONTS_DIR, exist_ok=True)
+    print(f"Using temporary font directory: {FONTS_DIR}")
+
+# Assets directory (for bundled resources)
+ASSETS_DIR = os.path.join(BASE_DIR, 'assets')
+if not os.path.exists(ASSETS_DIR) and hasattr(sys, '_MEIPASS'):
+    # For PyInstaller onefile mode
+    ASSETS_DIR = os.path.join(sys._MEIPASS, 'assets')
 
 # Projectile image paths
 PROJECTILE_IMG_PATH = os.path.join(ASSETS_DIR, 'fireball.png')
